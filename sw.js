@@ -1,4 +1,4 @@
-const CACHE = "shorojontro-v5";
+const CACHE = "govindagiri";
 
 // Works on root deploy (Render) and subpath deploy (GitHub Pages)
 const SCOPE_URL = new URL(self.registration.scope);
