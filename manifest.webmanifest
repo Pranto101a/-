@@ -1,13 +1,17 @@
 {
-  "name": " গোয়েন্দাগিরি(goandagiri)",
-  "short_name": "গোয়েন্দা": "/",",
-  "start_url": "/",
+  "name": "গোয়েন্দাগির — বাংলা কার্ড গেম",
+  "short_name": "গোয়েন্দাগিরি",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#070a12",
-  "theme_color": "#070a12",
+  "background_color": "#0B1220",
+  "theme_color": "#D9A441",
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "./opengraph.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
   ]
 }
 

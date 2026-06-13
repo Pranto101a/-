@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>গোয়েন্দাগিরি - Deception Edition</title>
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="manifest" href="./manifest.webmanifest">
+    <meta name="theme-color" content="#0f111a">
+    <script>
+      // ডাটা ছাড়াই খেলার জন্য (offline PWA)
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet" onerror="this.remove()">
     <style>
         :root {
             --bg-dark: #0f111a;
