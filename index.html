@@ -929,6 +929,13 @@
             b1:'victim clothing condition with torn shirt buttons gloves and fabric clues', b2:'time of day clues with clock sun moon dawn and midnight', b3:'messy room condition with broken furniture wet floor mirror key and lock', b4:'weather clues with rain fog storm snow heat and umbrella', b5:'left behind traces footprint fingerprint hair feather letter and thread', b6:'blood amount clue with drops stains bandage and wiped floor, non graphic', b7:'physical condition clue poison rash blue skin medicine syringe, non graphic', b8:'victim facial expression clue fear surprise pain tears, non graphic', b9:'body condition clue burn electric shock frozen and intact evidence, non graphic', b10:'injury location clue head chest back neck arms legs, non graphic', b11:'motive clues money jewel diary USB passport and secret document', b12:'killer build clue strong weak fast professional or animal trace', b13:'smell clues smoke perfume chemical medicine blood and rotten smell symbols', b14:'sound clues scream glass breaking footsteps car engine and silence', b15:'murder duration clue stopwatch fast slow instant and unknown time', b16:'social relationship clue couple partner enemy relative coworker stranger', b17:'crime type clue planned attack hired killer accident staged and self defense', b18:'extra object clue book chair vase photo key and locked laptop'
         };
 
+        // 🖼️ Fallback: if external images fail, show the card name's emoji as big icon
+        function handleCardImageError(imgEl, emoji) {
+            imgEl.style.backgroundImage = 'none';
+            imgEl.classList.add('card-img-fallback');
+            imgEl.innerHTML = '<div style="font-size:3rem; display:flex; align-items:center; justify-content:center; height:100%;">' + emoji + '</div>';
+        }
+
         function cartoonImageUrl(prompt, seed, kind) {
             const style = kind === 'tile'
                 ? 'clear readable cartoon noir detective board game clue tile, cinematic but simple, centered subject, no text, no watermark'
@@ -945,6 +952,103 @@
         }
 
         applyClearMatchingImages();
+
+        // ====================================================================
+        // 🧠 CONCEPT MODEL — একটি অভিন্ন "ধারণা/concept" সিস্টেম যা খুনির পদ্ধতি+
+        //   আলামতকে ফরেনসিক টাইলের সংকেতের সাথে অর্থপূর্ণভাবে যুক্ত করে।
+        //   এর ফলে: (১) টাইলগুলো খুনের সাথে সম্পর্কিত থাকে, (২) ২-৩টি টাইল আসল
+        //   উত্তরের দিকে ইঙ্গিত করে, (৩) তদন্তকারী/বট আসলেই খুনিকে ধরতে পারে।
+        // ====================================================================
+        const CONCEPTS = {
+            sharp:    ['ছুরি','ছুরিকা','তলোয়ার','কুঠার','কাঁচি','করাত','ধারালো','কাটার','সোর্ড','চেইনস','কাঁচ','জখম','রক্তপাত','রক্তাক্ত','রক্ত'],
+            blunt:    ['হাতুড়ি','পাথর','ট্রফি','গুঁড়ি','লাঠি','ভোঁতা','ভারী আঘাত','মাথায়'],
+            crush:    ['দেয়াল চাপা','আলমারি','লিফট','সিলিং ফ্যান','ফ্যান পতন','চাপা','পতন'],
+            fall:     ['ছাদ থেকে','উচ্চতা'],
+            poison:   ['বিষ','বিষাক্ত','বিষক্রিয়া','বিষধর','ওষুধ','ওভারডোজ','ইনজেকশন','মাশরুম','আলসার','সায়ানাইড','ইনহেলার','সিরিঞ্জ','ফেনা','নীলচে'],
+            chemical: ['এসিড','রাসায়নিক','পুকুরিণী','পুষ্করিণী','গলে'],
+            gas:      ['গ্যাস','নাইট্রোজেন','ধোঁয়া'],
+            asphyxia: ['শ্বাসরোধ','গলা টিপে','ফাঁস','বালিশ','প্লাস্টিক ব্যাগ','ওয়্যার','খাদ্যনালী','আটকানো','দমবন্ধ'],
+            drown:    ['পানিতে','ডুবিয়ে','ডুবে','ভেজা মেঝে','পানি'],
+            fire:     ['আগুন','পোড়া','পোড়ানো','ভস্ম','ঝলসে','কয়লা','তপ্ত','দিয়াশলাই'],
+            explosion:['বিস্ফোরণ','বোমা','বিস্ফোরক','জ্যাকেট'],
+            electric: ['বিদ্যুৎ','ইলেকট্রিক','বৈদ্যুতিক','পেসমেকার','গিয়ার ওয়্যার'],
+            radiation:['রেডিয়েশন','নিউক্লিয়ার','লেজার','রশ্মি'],
+            animal:   ['সাপ','নেকড়ে','পশু','পিরানহা','মাকড়সা','জন্তু','খাঁচা','ছোবল','বন্য'],
+            virus:    ['ভাইরাস'],
+            gun:      ['পিস্তল','গুলি','ক্রসবো','তীর','সাইলেন্সর','শুট','ড্রোন'],
+            vehicle:  ['গাড়ি','ইঞ্জিন','ট্রেন','দুর্ঘটনা'],
+            drill:    ['ড্রিল'],
+            hypnosis: ['সম্মোহন'],
+            money:    ['হিরে','মানিব্যাগ','চেক','মুদ্রা','টাকা','সম্পত্তি','আংটি','মেডেল','ক্রেডিট','সোনা'],
+            romance:  ['প্রেম','পরকীয়া','লিপস্টিক','চিঠি','ডায়েরি','পাসপোর্ট','দুল','রুমাল'],
+        };
+
+        // টেক্সট থেকে concept বের করা (কার্ডের নাম থেকে)
+        function conceptsOf(text) {
+            const t = (text || '').toString();
+            const out = new Set();
+            for (const c in CONCEPTS) {
+                for (const w of CONCEPTS[c]) { if (t.indexOf(w) !== -1) { out.add(c); break; } }
+            }
+            return out;
+        }
+        // কার্ডের concept (ক্যাশ করা)
+        function cardConcepts(card) {
+            if (!card) return new Set();
+            if (!card._concepts) card._concepts = conceptsOf(card.name);
+            return card._concepts;
+        }
+
+        // প্রতিটি টাইলের প্রতিটি অপশন কোন concept-এর দিকে ইঙ্গিত করে।
+        // (খালি [] মানে: ওই অপশনটি দৃশ্যপটের রং—খুনের পদ্ধতির কোনো সংকেত দেয় না)
+        const OPTION_TAGS = {
+            t_death: [['asphyxia','gas','drown'], ['sharp','blunt','gun'], ['poison','chemical','gas'], ['virus','poison'], ['vehicle','fall','crush','electric','drill'], ['poison','gas','asphyxia','virus','electric','hypnosis']],
+            l1: [[],[],[],[],[],[]], l2: [[],[],[],[],[],[]], l3: [[],[],[],[],[],[]], l4: [[],[],[],[],[],[]],
+            b1: [[],[],[],[],[],[]],
+            b2: [[],[],[],[],[],[]],
+            b3: [[],[],[],[],[],[]],
+            b4: [[],[],[],[],[],[]],
+            b5: [[],[],['sharp','gun','blunt'],[],[],[]],
+            b6: [['sharp','gun','blunt'],['sharp','blunt'],['sharp','blunt'],['sharp','gun'],[],['poison','gas','asphyxia','drown','electric','virus','fire','hypnosis']],
+            b7: [['poison','chemical','gas'],['asphyxia','poison','gas','drown'],['poison','animal','chemical'],['asphyxia','gas','chemical'],['chemical','fire','radiation','poison'],['poison','virus','asphyxia','electric','hypnosis']],
+            b8: [['poison','gas','asphyxia','hypnosis'],['animal','gun','sharp'],['poison','chemical','fire'],['gun','explosion','electric'],['asphyxia','poison','gas','drown'],[]],
+            b9: [['fire','explosion','radiation'],['fire','explosion','electric'],['electric'],['chemical','radiation'],['poison','asphyxia','gas','virus','hypnosis','drown'],['gas']],
+            b10:[['blunt','crush'],['sharp','gun'],['sharp','blunt','gun'],['asphyxia'],['fall','crush','vehicle','blunt'],['poison','gas','virus','electric','asphyxia','hypnosis']],
+            b11:[['money'],[],[],['romance'],[],[]],
+            b12:[['blunt','crush','sharp'],[],['poison','gun'],['gun','sharp','poison'],[],['animal','virus','radiation','electric','poison']],
+            b13:[['fire','explosion'],['poison','virus'],['romance'],['sharp','gun','blunt'],['chemical','poison','gas'],['asphyxia','electric','gun','blunt','crush']],
+            b14:[['fire','animal','sharp','chemical'],['sharp'],['blunt','asphyxia','sharp'],[],['vehicle'],['poison','gas','asphyxia','electric','hypnosis']],
+            b15:[['gun','explosion','sharp','electric','fall'],['asphyxia','drown','gas','blunt'],['poison','chemical','virus'],['poison','virus','radiation'],['gun','explosion','electric','crush','fall'],[]],
+            b16:[['romance'],[],[],[],[],[]],
+            b17:[['poison','gun','gas','explosion'],['blunt','sharp'],['sharp','blunt'],['gun','poison'],['vehicle','fall','crush','electric','drown'],['sharp','blunt','gun']],
+            b18:[[],[],[],[],[],[]],
+        };
+        // টাইলের একটি অপশনের concept-সেট
+        function optConcepts(tileId, idx) {
+            const t = OPTION_TAGS[tileId];
+            if (t && t[idx]) return new Set(t[idx]);
+            return new Set();
+        }
+        // দুটি concept-সেটের মধ্যকার মিলের সংখ্যা
+        function conceptOverlap(a, b) {
+            let n = 0; a.forEach(x => { if (b.has(x)) n++; }); return n;
+        }
+        // খুনির বাছাই করা ২টি কার্ডের সম্মিলিত concept-সেট
+        function murdererConceptSet() {
+            const m = METHOD_CARDS.find(x => x.id === state.murdererChoice.method);
+            const e = EVIDENCE_CARDS.find(x => x.id === state.murdererChoice.evidence);
+            const s = new Set(); cardConcepts(m).forEach(c => s.add(c)); cardConcepts(e).forEach(c => s.add(c));
+            return s;
+        }
+        // একটি টাইল খুনির concept-গুলো কতটা প্রকাশ করতে পারে (ধারণক্ষমতা)
+        function tileCapacity(tile, hyp) {
+            let best = 0;
+            for (let i = 0; i < tile.options.length; i++) {
+                const ov = conceptOverlap(optConcepts(tile.id, i), hyp);
+                if (ov > best) best = ov;
+            }
+            return best;
+        }
 
         function stopTap(evt) {
             if (evt) {
@@ -1038,6 +1142,7 @@
         // --- STATE MANAGEMENT ---
         let state = {
             step: 'setup', players: [], rolesConfig: { accomplice: false, witness: false },
+            selectedDetectiveIdx: -1,
             currentPlayerIdx: 0, murdererChoice: { method: null, evidence: null },
             forensicClues: {}, currentRound: 1,
             activeLocationTile: null, activeBrownTiles: [], smartQueues: { 2: [], 3: [] },
@@ -1093,21 +1198,49 @@
             state.tempNumPlayers = numPlayers;
             state.rolesConfig.accomplice = document.getElementById('chkAccomplice')?.checked || false;
             state.rolesConfig.witness = document.getElementById('chkWitness')?.checked || false;
-            
+
             const difficultySelect = document.getElementById('difficultyMode');
             if (difficultySelect) state.difficultyMode = parseInt(difficultySelect.value);
 
+            const detectiveSelect = document.getElementById('detectiveSelect');
+            if (detectiveSelect) state.selectedDetectiveIdx = parseInt(detectiveSelect.value);
+
             setStep('player_names');
         }
-
         function initGame() {
             const numPlayers = state.tempNumPlayers;
 
-            let rolesArr = ['গোয়েন্দা', 'খুনি'];
-            if (state.rolesConfig.accomplice && numPlayers >= 5) rolesArr.push('খুনির সহযোগী');
-            if (state.rolesConfig.witness && numPlayers >= 5) rolesArr.push('সাক্ষী');
-            while (rolesArr.length < numPlayers) rolesArr.push('তদন্তকারী');
-            rolesArr = shuffle(rolesArr);
+            let rolesArr = [];
+            // 🕵️ Detective assignment: user can manually pick or auto-select
+            if (state.selectedDetectiveIdx >= 1 && state.selectedDetectiveIdx <= numPlayers) {
+                // User selected a specific player as detective
+                for (let i = 0; i < numPlayers; i++) {
+                    if (i === state.selectedDetectiveIdx - 1) {
+                        rolesArr.push('গোয়েন্দা');
+                    } else {
+                        rolesArr.push(null); // placeholder
+                    }
+                }
+                // Fill remaining slots with shuffled roles
+                let remainingRoles = ['খুনি'];
+                if (state.rolesConfig.accomplice && numPlayers >= 5) remainingRoles.push('খুনির সহযোগী');
+                if (state.rolesConfig.witness && numPlayers >= 5) remainingRoles.push('সাক্ষী');
+                while (remainingRoles.length < (numPlayers - 1)) remainingRoles.push('তদন্তকারী');
+                remainingRoles = shuffle(remainingRoles);
+                let ri = 0;
+                for (let i = 0; i < numPlayers; i++) {
+                    if (rolesArr[i] === null) {
+                        rolesArr[i] = remainingRoles[ri++];
+                    }
+                }
+            } else {
+                // Auto-select: random detective assignment
+                rolesArr = ['গোয়েন্দা', 'খুনি'];
+                if (state.rolesConfig.accomplice && numPlayers >= 5) rolesArr.push('খুনির সহযোগী');
+                if (state.rolesConfig.witness && numPlayers >= 5) rolesArr.push('সাক্ষী');
+                while (rolesArr.length < numPlayers) rolesArr.push('তদন্তকারী');
+                rolesArr = shuffle(rolesArr);
+            }
 
             let mDeck = shuffle([...METHOD_CARDS]);
             let eDeck = shuffle([...EVIDENCE_CARDS]);
@@ -1164,96 +1297,58 @@
         }
 
         function updateSmartForensicTiles(methodId, evidenceId) {
-            const method = METHOD_CARDS.find(m => m.id === methodId);
-            const evidence = EVIDENCE_CARDS.find(e => e.id === evidenceId);
-            const combinedText = (method.name + " " + evidence.name).toLowerCase();
+            // 🧠 concept-ভিত্তিক টাইল নির্বাচন: খুনির পদ্ধতি+আলামতের concept-গুলো
+            //   যেসব ব্রাউন টাইল প্রকাশ করতে পারে সেগুলোকেই অগ্রাধিকার দেওয়া হয়,
+            //   যাতে বোর্ডে অপ্রাসঙ্গিক/অর্থহীন টাইল না আসে।
+            const hyp = (function(){
+                const m = METHOD_CARDS.find(x => x.id === methodId);
+                const e = EVIDENCE_CARDS.find(x => x.id === evidenceId);
+                const s = new Set(); cardConcepts(m).forEach(c=>s.add(c)); cardConcepts(e).forEach(c=>s.add(c));
+                return s;
+            })();
 
-            // 🧠 Scoring: match brown tiles to the murderer's chosen method+evidence,
-            //   but keep partial similarity (not exact), so the detective can hint
-            //   without leaking the answer outright.
-            //   - Full keyword hit  → +2.2 (strong but not overwhelming)
-            //   - Partial substring → +0.9 (subtle similarity)
-            //   - Random jitter     → 0..0.7 (organic variety)
-            const STRONG = 2.2, PARTIAL = 0.9;
-            const partialHit = (kw) => {
-                const k = kw.toLowerCase();
-                if (k.length < 3) return false;
-                // share a 3-char window with the combined text
-                for (let i = 0; i <= k.length - 3; i++) {
-                    if (combinedText.includes(k.slice(i, i + 3))) return true;
-                }
-                return false;
-            };
-
-            let scoredTiles = SMART_BROWN_TILES.map(tile => {
-                let score = Math.random() * 0.7;
-                let strongHits = 0;
-                if (tile.keywords) {
-                    tile.keywords.forEach(kw => {
-                        const k = kw.toLowerCase();
-                        if (combinedText.includes(k)) { score += STRONG; strongHits++; }
-                        else if (partialHit(kw))      { score += PARTIAL; }
-                    });
-                }
-                return { ...tile, score, strongHits };
+            // প্রতিটি ব্রাউন টাইলের ধারণক্ষমতা (খুনির concept কতটা প্রকাশ করতে পারে)
+            let scored = SMART_BROWN_TILES.map(tile => {
+                const cap = tileCapacity(tile, hyp);
+                return { ...tile, cap, jitter: Math.random() };
             });
 
-            scoredTiles.sort((a, b) => b.score - a.score);
-
-            // Split by similarity band
-            const strongPool = scoredTiles.filter(t => t.strongHits >= 1);
-            const mediumPool = scoredTiles.filter(t => t.strongHits === 0 && t.score >= 0.8);
-            const weakPool   = scoredTiles.filter(t => t.strongHits === 0 && t.score < 0.8);
+            // প্রাসঙ্গিক (অন্তত ১টি concept মেলে) বনাম দৃশ্যপট-টাইল (cap=0)
+            let relevant = scored.filter(t => t.cap >= 1).sort((a,b)=> (b.cap-a.cap) || (a.jitter-b.jitter));
+            let flavor   = scored.filter(t => t.cap < 1);
+            relevant = shuffle(relevant.slice()).sort((a,b)=> b.cap-a.cap); // উচ্চ cap আগে, সমানগুলো এলোমেলো
 
             const taken = new Set();
             const take = (arr, n) => {
                 const out = [];
-                for (const t of arr) {
-                    if (out.length >= n) break;
-                    if (!taken.has(t.id)) { taken.add(t.id); out.push(t); }
-                }
+                for (const t of arr) { if (out.length>=n) break; if (!taken.has(t.id)) { taken.add(t.id); out.push(t); } }
                 return out;
             };
 
-            // 🎯 Round 1: Lower match rate — only 1 strong match, rest are
-            // medium/weak tiles so the detective has to work harder.
+            // 🎯 রাউন্ড ১: ৩টি প্রাসঙ্গিক টাইল + ১টি দৃশ্যপট টাইল
+            //   (পার্পল মৃত্যুর কারণ + গ্রীন লোকেশন আলাদাভাবে সবসময় থাকে)
+            // ৪টি ব্রাউন টাইল—যত বেশি সম্ভব প্রাসঙ্গিক; প্রাসঙ্গিক কম পড়লে দৃশ্যপট টাইল দিয়ে পূরণ
             let round1Tiles = [];
-            round1Tiles.push(...take(shuffle(strongPool), 1));           // 1 strong
-            round1Tiles.push(...take(shuffle(mediumPool), 2));           // 2 medium
-            round1Tiles.push(...take(shuffle(weakPool), 1));             // 1 weak
-            // Fallbacks if any pool runs dry
-            if (round1Tiles.length < 4) round1Tiles.push(...take(shuffle(mediumPool), 4 - round1Tiles.length));
-            if (round1Tiles.length < 4) round1Tiles.push(...take(shuffle(strongPool), 4 - round1Tiles.length));
-            if (round1Tiles.length < 4) round1Tiles.push(...take(shuffle(scoredTiles), 4 - round1Tiles.length));
+            round1Tiles.push(...take(relevant, 4));
+            if (round1Tiles.length < 4) round1Tiles.push(...take(shuffle(flavor.slice()), 4 - round1Tiles.length));
+            if (round1Tiles.length < 4) round1Tiles.push(...take(shuffle(scored.slice()), 4 - round1Tiles.length));
 
-            // Swap queues for later rounds
-            const remaining = scoredTiles.filter(t => !taken.has(t.id));
+            // পরবর্তী রাউন্ডের সোয়াপ-কিউ: বাকি প্রাসঙ্গিক টাইলগুলো আগে আসবে
+            const remainingRel = relevant.filter(t => !taken.has(t.id));
+            const remainingFla = shuffle(flavor.filter(t => !taken.has(t.id)));
 
-            // Round 2 queue: medium-related replacements (still somewhat useful)
+            // রাউন্ড ২: ১-২টি প্রাসঙ্গিক প্রতিস্থাপন (এখনো কাজে লাগে)
             const round2Queue = [];
-            const r2StrongLeft = remaining.filter(t => t.strongHits >= 1);
-            const r2Pool = remaining.filter(t => t.strongHits === 0 && t.score >= 0.6);
-            round2Queue.push(...take(shuffle(r2StrongLeft), 1));
-            round2Queue.push(...take(shuffle(r2Pool), 2 - round2Queue.length));
-            if (round2Queue.length < 2) round2Queue.push(...take(shuffle(remaining), 2 - round2Queue.length));
+            round2Queue.push(...take(remainingRel, 2));
+            if (round2Queue.length < 2) round2Queue.push(...take(remainingFla, 2 - round2Queue.length));
 
-            // 🌫️ Round 3 queue: MOSTLY misses (noise) with only 1 matching tile.
-            // The detective should feel that swapping in R3 is risky — most
-            // replacements are unrelated, only one true hint sneaks through.
+            // রাউন্ড ৩: অন্তত ১টি প্রাসঙ্গিক টাইল রাখা হয় (যাতে শেষ রাউন্ডেও সূত্র থাকে),
+            //   বাকিগুলো দৃশ্যপট—কিন্তু পুরোপুরি অর্থহীন নয়।
             const round3Queue = [];
-            const r3Remaining = scoredTiles.filter(t => !taken.has(t.id));
-            const r3StrongLeft = r3Remaining.filter(t => t.strongHits >= 1);
-            const r3Noise = r3Remaining.filter(t => t.strongHits === 0).sort((a, b) => a.score - b.score);
-            // 1 matching tile (if any strong left, else best medium remaining)
-            if (r3StrongLeft.length > 0) {
-                round3Queue.push(...take(shuffle(r3StrongLeft), 1));
-            } else {
-                const r3MediumLeft = r3Remaining.filter(t => t.score >= 0.8).sort((a, b) => b.score - a.score);
-                round3Queue.push(...take(r3MediumLeft, 1));
-            }
-            // Rest: weakest / most unrelated tiles (the "misses")
-            round3Queue.push(...take(r3Noise, 3 - round3Queue.length));
-            if (round3Queue.length < 3) round3Queue.push(...take(shuffle(r3Remaining), 3 - round3Queue.length));
+            const relLeft = relevant.filter(t => !taken.has(t.id));
+            round3Queue.push(...take(relLeft, 1));
+            round3Queue.push(...take(shuffle(flavor.filter(t=>!taken.has(t.id))), 3 - round3Queue.length));
+            if (round3Queue.length < 3) round3Queue.push(...take(shuffle(scored.filter(t=>!taken.has(t.id))), 3 - round3Queue.length));
 
             round2Queue.forEach(t => t && (t.tier = 2));
             round3Queue.forEach(t => t && (t.tier = 3));
@@ -1552,6 +1647,23 @@
                                     <label class="checkbox-item"><input type="checkbox" id="chkAccomplice"> খুনির সহযোগী</label>
                                     <label class="checkbox-item"><input type="checkbox" id="chkWitness"> সাক্ষী (Witness)</label>
                                 </div>
+                                                        </div>
+                            <div class="form-group" style="margin-top:16px;">
+                                <label for="detectiveSelect">🕵️ গোয়েন্দা (Detective) সিলেক্ট করুন:</label>
+                                <select id="detectiveSelect" class="select-players" style="width:100%;">
+                                    <option value="-1">🤖 অটো-সিলেক্ট (র‍্যান্ডম)</option>
+                                    <option value="1">প্লেয়ার ১</option>
+                                    <option value="2">প্লেয়ার ২</option>
+                                    <option value="3">প্লেয়ার ৩</option>
+                                    <option value="4">প্লেয়ার ৪</option>
+                                    <option value="5">প্লেয়ার ৫</option>
+                                    <option value="6">প্লেয়ার ৬</option>
+                                    <option value="7">প্লেয়ার ৭</option>
+                                    <option value="8">প্লেয়ার ৮</option>
+                                    <option value="9">প্লেয়ার ৯</option>
+                                    <option value="10">প্লেয়ার ১০</option>
+                                </select>
+                                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">যদি "অটো-সিলেক্ট" রাখেন, তাহলে গেম অটোমেটিক যেকোনো একজনকে গোয়েন্দা বানাবে।</div>
                             </div>
                             <button type="button" class="btn" style="width:100%; margin-top:10px;" onclick="goToNameSelection()">পরবর্তী ধাপে যান ➡️</button>
                         </div>
@@ -1635,11 +1747,11 @@
                         innerHtml += `<h3>🃏 আপনার ব্যক্তিগত ডেক:</h3>`;
                         innerHtml += `<p style="color:#cca4f8">🔹 খুনের সম্ভাব্য পদ্ধতি (Methods):</p><div class="card-grid">`;
                         p.cards.methods.forEach(c => {
-                            innerHtml += `<div class="game-card card-method"><div class="card-img" style="background-image:url('${c.img}')"><div class="card-emoji-overlay">${c.icon}</div></div><div class="card-info">${c.name}</div></div>`;
+                            innerHtml += `<div class="game-card card-method"><div class="card-img" style="background-image:url('${c.img}')" onerror="this.style.backgroundImage='none';this.classList.add('card-img-fallback');this.innerHTML='<div style=\'font-size:2.5rem;display:flex;align-items:center;justify-content:center;height:100%;\'>${c.icon}</div>'"><div class="card-emoji-overlay">${c.icon}</div></div><div class="card-info">${c.name}</div></div>`;
                         });
                         innerHtml += `</div><p style="color:#ffdd99">🔸 আপনার হাতের প্রমাণ (Evidence):</p><div class="card-grid">`;
                         p.cards.evidence.forEach(c => {
-                            innerHtml += `<div class="game-card card-evidence"><div class="card-img" style="background-image:url('${c.img}')"><div class="card-emoji-overlay">${c.icon}</div></div><div class="card-info">${c.name}</div></div>`;
+                            innerHtml += `<div class="game-card card-evidence"><div class="card-img" style="background-image:url('${c.img}')" onerror="this.style.backgroundImage='none';this.classList.add('card-img-fallback');this.innerHTML='<div style=\'font-size:2.5rem;display:flex;align-items:center;justify-content:center;height:100%;\'>${c.icon}</div>'"><div class="card-emoji-overlay">${c.icon}</div></div><div class="card-info">${c.name}</div></div>`;
                         });
                         innerHtml += `</div>`;
                     }
@@ -2147,21 +2259,26 @@
         // ---------- investigator bot ----------
         // Score how well a hypothesis (suspect with method+evidence) explains the revealed clues
         function _scoreHypothesis(method, evidence) {
-            const hint = _buildHint(method, evidence);
+            // 🧠 concept-ভিত্তিক: একটি অনুমান (সন্দেহভাজনের পদ্ধতি+আলামত) প্রকাশিত
+            //   সংকেতগুলোকে কতটা ভালোভাবে ব্যাখ্যা করে তা মাপা হয়।
+            const hyp = new Set();
+            cardConcepts(method).forEach(c => hyp.add(c));
+            cardConcepts(evidence).forEach(c => hyp.add(c));
+            if (hyp.size === 0) return 0;
             let total = 0;
             const tiles = [CAUSE_OF_DEATH_TILE, state.activeLocationTile, ...state.activeBrownTiles];
             for (const tile of tiles) {
+                if (!tile) continue;
                 const revealedIdx = state.forensicClues[tile.id];
                 if (revealedIdx === undefined) continue;
-                const optText = tile.options[revealedIdx];
-                const sRevealed = _scoreOptionAgainstHint(optText, hint);
+                const sRevealed = conceptOverlap(optConcepts(tile.id, revealedIdx), hyp);
+                // ওই টাইলের সব অপশনের গড় মিল (baseline) — তাই শুধু "নির্দিষ্ট ইঙ্গিত" পুরস্কৃত হয়
                 let sum = 0;
-                tile.options.forEach(o => { sum += _scoreOptionAgainstHint(o, hint); });
+                for (let i = 0; i < tile.options.length; i++) sum += conceptOverlap(optConcepts(tile.id, i), hyp);
                 const mean = sum / tile.options.length;
-                // 🔍 Tier weighting: round-3 clues are more reliable signals than round-1
-                // This makes the bot read the SITUATION (which clues are stronger) instead of
-                // just averaging everything. Cause-of-death + location are baseline weight 1.
-                const tierWeight = tile.tier === 3 ? 3 : (tile.tier === 2 ? 2 : 1);
+                // টিয়ার ওজন: রাউন্ড-৩ এর সংকেত বেশি নির্ভরযোগ্য
+                let tierWeight = tile.tier === 3 ? 3 : (tile.tier === 2 ? 2 : 1);
+                if (tile.id === 't_death') tierWeight = Math.max(tierWeight, 2); // মৃত্যুর কারণ সবচেয়ে নির্ভরযোগ্য
                 total += (sRevealed - mean) * tierWeight;
             }
             return total;
@@ -2217,9 +2334,18 @@
             // 🧠 Investigator bot now ALWAYS uses logic from revealed clues — no random guesses.
             // Difficulty only controls how cautious it is (when to skip a weak round) and a little noise on medium.
             let willAccuse;
-            if (diff === 'easy') willAccuse = (best.score > 0 || state.currentRound === 3);
-            else if (diff === 'medium') willAccuse = (best.score > 0.5 || (state.currentRound === 3 && best.score > 0));
-            else willAccuse = (best.score > 1.0 && margin > 0.6) || (state.currentRound === 3 && best.score > 0.5);
+            // 🧠 Improved accusation thresholds with progressive aggression
+            if (diff === 'easy') willAccuse = (best.score >= 0.5 || state.currentRound === 3);
+            else if (diff === 'medium') {
+                if (state.currentRound === 1) willAccuse = (best.score > 1.0 && margin > 0.5);
+                else if (state.currentRound === 2) willAccuse = (best.score > 0.5 || (best.score > 0 && margin > 0.8));
+                else willAccuse = (best.score > 0.2); // Round 3: more aggressive
+            }
+            else {
+                if (state.currentRound === 1) willAccuse = (best.score > 1.5 && margin > 1.0);
+                else if (state.currentRound === 2) willAccuse = (best.score > 0.8 && margin > 0.5);
+                else willAccuse = (best.score > 0.3 && margin > 0.2); // Round 3: still careful but willing
+            }
 
             if (!willAccuse) return false;
 
@@ -2303,22 +2429,20 @@
 
         // ---------- forensic (detective) bot ----------
         function _botForensicPickClues() {
-            const murderer = getMurderer();
-            const method = murderer.cards.methods.find(x => x.id === state.murdererChoice.method);
-            const evidence = murderer.cards.evidence.find(x => x.id === state.murdererChoice.evidence);
-            const hint = _buildHint(method, evidence);
-            // 🧠 Detective bot now ALWAYS plays by the murderer's real cards (no random misdirection).
-            // Hard difficulty = always pick best matching option; medium/easy keep small noise.
+            // 🧠 ফরেনসিক বট সবসময় খুনির আসল কার্ডের concept অনুযায়ী খেলে।
+            //   প্রতিটি টাইলে এমন অপশন বসায় যা সত্যের দিকে সবচেয়ে বেশি ইঙ্গিত করে।
             const diff = state.botDifficulty;
+            const hyp = murdererConceptSet();
 
-            // Helper: best option index for a tile (deterministic, matches the hint)
+            // টাইলের সেরা অপশন: খুনির concept-এর সাথে সর্বোচ্চ মিলযুক্ত অপশন
             function bestIdx(tile) {
-                const scored = tile.options.map((opt, i) => ({ i, s: _scoreOptionAgainstHint(opt, hint) }));
-                scored.sort((a, b) => b.s - a.s);
+                let scored = tile.options.map((opt, i) => ({ i, s: conceptOverlap(optConcepts(tile.id, i), hyp), j: Math.random() }));
+                scored.sort((a, b) => (b.s - a.s) || (a.j - b.j));
+                // কোনো মিল নেই (দৃশ্যপট টাইল) → একটি যুক্তিসঙ্গত/নিরপেক্ষ অপশন বেছে নাও
                 if (scored[0].s === 0) {
-                    // No keyword match → pick the option whose tokens overlap most with hint (still avoid random)
-                    return 0;
+                    return Math.floor(Math.random() * tile.options.length);
                 }
+                // easy মোডে মাঝেমধ্যে ভুল করে; medium/hard নির্ভুল
                 if (diff === 'easy' && Math.random() < 0.25) {
                     return Math.floor(Math.random() * tile.options.length);
                 }
@@ -2326,22 +2450,26 @@
             }
 
             if (state.currentRound === 1) {
-                // 🟢 Round 1: detective sets all clues from scratch
+                // 🟢 রাউন্ড ১: সব টাইলে শুরু থেকে সেরা মিলযুক্ত সংকেত বসাও
                 state.forensicClues['t_death'] = bestIdx(CAUSE_OF_DEATH_TILE);
                 state.forensicClues[state.activeLocationTile.id] = bestIdx(state.activeLocationTile);
                 state.activeBrownTiles.forEach(t => { state.forensicClues[t.id] = bestIdx(t); });
+                // hard: সবচেয়ে প্রাসঙ্গিক টাইল আগে দেখাও
+                if (diff === 'hard') {
+                    state.activeBrownTiles.sort((a, b) => tileCapacity(b, hyp) - tileCapacity(a, hyp));
+                }
             } else {
-                // 🟡 Round 2/3: keep previous clues; change AT MOST 1 clue (the one that improves the most)
-                // and try AT MOST 1 tile swap (prefer brown tiles where current clue is weakest).
+                // 🟡 রাউন্ড ২/৩: আগের সংকেত রেখে সর্বোচ্চ ১টি সংকেত বদলাও +
+                //   সর্বোচ্চ ১টি দুর্বল ব্রাউন টাইল সোয়াপ করো (যেটি সত্য কম প্রকাশ করে)।
                 const tiles = [CAUSE_OF_DEATH_TILE, state.activeLocationTile, ...state.activeBrownTiles];
 
-                // 1) Find clue with biggest improvement potential
+                // ১) সবচেয়ে উন্নতিযোগ্য সংকেত খুঁজে বদলাও
                 let bestSwap = null;
                 tiles.forEach(t => {
                     const cur = state.forensicClues[t.id];
                     const target = bestIdx(t);
                     if (cur === undefined || cur !== target) {
-                        const gain = _scoreOptionAgainstHint(t.options[target], hint) - (cur !== undefined ? _scoreOptionAgainstHint(t.options[cur], hint) : -1);
+                        const gain = conceptOverlap(optConcepts(t.id, target), hyp) - (cur !== undefined ? conceptOverlap(optConcepts(t.id, cur), hyp) : -1);
                         if (gain > 0 && (!bestSwap || gain > bestSwap.gain)) {
                             bestSwap = { tileId: t.id, newIdx: target, gain };
                         }
@@ -2353,27 +2481,22 @@
                     state.clueChangeCountThisRound = 1;
                 }
 
-                // 2) Optionally swap a brown tile (R2/R3) or location tile (R3) for one that fits the hint better
+                // ২) সবচেয়ে কম-প্রাসঙ্গিক ব্রাউন টাইলকে কিউয়ের আরও প্রাসঙ্গিক টাইল দিয়ে বদলাও
                 if (!state.hasSwappedThisRound) {
-                    // Score current brown tiles by max option-match
                     let weakest = null;
                     state.activeBrownTiles.forEach((t, idx) => {
-                        const maxScore = Math.max(...t.options.map(o => _scoreOptionAgainstHint(o, hint)));
-                        if (!weakest || maxScore < weakest.score) weakest = { idx, score: maxScore, tileId: t.id };
+                        const cap = tileCapacity(t, hyp);
+                        if (!weakest || cap < weakest.cap) weakest = { idx, cap, tileId: t.id };
                     });
-                    // Pick the next queued smart-brown for this round
                     const queue = state.smartQueues[state.currentRound] || [];
                     if (weakest && queue.length > 0) {
                         const incoming = queue[0];
-                        const incomingMax = Math.max(...incoming.options.map(o => _scoreOptionAgainstHint(o, hint)));
-                        if (incomingMax > weakest.score) {
-                            // perform swap
+                        const incomingCap = tileCapacity(incoming, hyp);
+                        if (incomingCap > weakest.cap) {
                             changeTileInNewRound(weakest.tileId);
-                            // pick best clue on the new tile (counts as the 1 clue change if we haven't already used it)
                             const newTile = state.activeBrownTiles[weakest.idx];
                             if (newTile) {
-                                const idxPick = bestIdx(newTile);
-                                state.forensicClues[newTile.id] = idxPick;
+                                state.forensicClues[newTile.id] = bestIdx(newTile);
                             }
                         }
                     }
@@ -2671,13 +2794,13 @@
                             const allTiles = SMART_BROWN_TILES;
                             let scored = [];
                             for (const mm of methods) for (const ee of evs) {
-                                const hint = _buildHint(mm, ee);
+                                // 🧠 concept-ভিত্তিক: কয়টি টাইল এই কম্বো প্রকাশ করতে পারে?
+                                //   কম হলে = বেশি গোপনীয় (ধরা কঠিন)।
+                                const hSet = new Set();
+                                cardConcepts(mm).forEach(c => hSet.add(c));
+                                cardConcepts(ee).forEach(c => hSet.add(c));
                                 let s = 0;
-                                for (const t of allTiles) {
-                                    if (t.keywords) for (const kw of t.keywords) {
-                                        if (hint.toLowerCase().indexOf(kw.toLowerCase()) !== -1) s++;
-                                    }
-                                }
+                                for (const t of allTiles) { if (tileCapacity(t, hSet) >= 1) s++; }
                                 scored.push({ m: mm, e: ee, s });
                             }
                             scored.sort((a, b) => a.s - b.s); // lowest first = stealthier
@@ -2710,11 +2833,50 @@
                         _botForensicPickClues();
                         return;
                     case 'witness_kill_phase': {
-                        // Murderer-as-witness-killer: try to identify the witness logically.
-                        // The witness role is hidden; in hard mode, prefer a player whose cards
-                        // make them an unlikely murderer (more "innocent looking"). Easy = random.
+                        // 🧠 Improved Witness-Killer Logic:
+                        // The bot (murderer) tries to identify and kill the witness.
+                        // Strategy: Analyze each candidate's behavior pattern
                         const candidates = state.players.filter(p => p.role !== 'খুনি' && p.role !== 'গোয়েন্দা');
-                        const target = (state.botDifficulty === 'easy') ? _rand(candidates) : _rand(candidates);
+                        if (candidates.length === 0) { handleWitnessKill(); return; }
+
+                        let target;
+                        if (state.botDifficulty === 'easy') {
+                            // Easy: random (but not the detective, already filtered)
+                            target = candidates[Math.floor(Math.random() * candidates.length)];
+                        } else if (state.botDifficulty === 'medium') {
+                            // Medium: prefer players who haven't accused anyone yet (witness usually stays quiet)
+                            const quiet = candidates.filter(p => !p.hasAccused);
+                            target = quiet.length > 0 ? _rand(quiet) : _rand(candidates);
+                        } else {
+                            // Hard: smart targeting - look for patterns that suggest witness
+                            // Witness knows the murderer, so may behave differently
+                            // 1. Prefer players who haven't accused (witness is cautious)
+                            const notAccused = candidates.filter(p => !p.hasAccused);
+                            // 2. Among those, pick one whose cards look "innocent" (non-murderous keywords)
+                            if (notAccused.length > 0) {
+                                // Score by how "un-murderous" their cards look
+                                const scored = notAccused.map(p => {
+                                    let innocentScore = 0;
+                                    const violentKeywords = ['হত্যা','মারাত্মক','আঘাত','ছুরি','পিস্তল','বিষ','বিস্ফোরণ','শ্বাসরোধ','আগুন','গলা টিপে','তলোয়ার','বোমা','কুঠার','ধারালো','অ্যাসিড','সায়ানাইড','ড্রিল'];
+                                    p.cards.methods.forEach(m => {
+                                        const hasViolent = violentKeywords.some(kw => m.name.includes(kw));
+                                        if (!hasViolent) innocentScore += 2;
+                                    });
+                                    // Also check evidence cards
+                                    p.cards.evidence.forEach(e => {
+                                        const hasViolent = violentKeywords.some(kw => e.name.includes(kw));
+                                        if (!hasViolent) innocentScore += 1;
+                                    });
+                                    return { p, innocentScore };
+                                });
+                                scored.sort((a,b) => b.innocentScore - a.innocentScore);
+                                // Pick from top half of most innocent-looking
+                                const topHalf = scored.slice(0, Math.max(1, Math.floor(scored.length/2)));
+                                target = topHalf[Math.floor(Math.random() * topHalf.length)].p;
+                            } else {
+                                target = _rand(candidates);
+                            }
+                        }
                         const sel = document.getElementById('witnessTarget');
                         if (sel) sel.value = target.id;
                         handleWitnessKill();
